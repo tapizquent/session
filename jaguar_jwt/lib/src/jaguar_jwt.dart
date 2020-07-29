@@ -15,8 +15,6 @@ import 'b64url_rfc7515.dart';
 import 'claim.dart';
 import 'exception.dart';
 
-
-
 /// Issues a HMAC SHA-256 signed JWT.
 ///
 /// Creates a JWT using the [claimSet] for the payload and signing it using
@@ -39,6 +37,38 @@ String issueJwtHS256(JwtClaim claimSet, String hmacKey) {
   // Ordering is not required for JWT: it is deterministic and neater.
   final header = SplayTreeMap<String, String>.from(
       <String, String>{'alg': 'HS256', 'typ': 'JWT'});
+
+  final String encHdr = B64urlEncRfc7515.encodeUtf8(json.encode(header));
+  final String encPld =
+      B64urlEncRfc7515.encodeUtf8(json.encode(claimSet.toJson()));
+  final String data = '${encHdr}.${encPld}';
+  final String encSig =
+      B64urlEncRfc7515.encode(hmac.convert(data.codeUnits).bytes);
+  return data + '.' + encSig;
+}
+
+/// Issues a ES256 signed JWT.
+///
+/// Creates a JWT using the [claimSet] for the payload and signing it using
+/// the [hmacKey] with the HMAC SHA-256 algorithm.
+///
+/// Throws a [JsonUnsupportedObjectError] if any of the Claim Values are not
+/// suitable for a JWT.
+///
+///     final claimSet = JwtClaim(
+///       subject: 'kleak',
+///       issuer: 'teja',
+///       audience: <String>['example.com', 'hello.com'],
+///       payload: {'k': 'v'});
+///       String token = issueJwtHS256(claimSet, key);
+///       print(token);
+String issueJwtES256(JwtClaim claimSet, String hmacKey) {
+  final hmac = Hmac(sha256, hmacKey.codeUnits);
+
+  // Use SplayTreeMap to ensure ordering in JSON: i.e. alg before typ.
+  // Ordering is not required for JWT: it is deterministic and neater.
+  final header = SplayTreeMap<String, String>.from(
+      <String, String>{'alg': 'ES256', 'typ': 'JWT'});
 
   final String encHdr = B64urlEncRfc7515.encodeUtf8(json.encode(header));
   final String encPld =
